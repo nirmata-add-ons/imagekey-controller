@@ -1,0 +1,380 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.8.0
+  creationTimestamp: null
+  name: imagekeys.security.nirmata.io
+spec:
+  group: security.nirmata.io
+  names:
+    kind: ImageKey
+    listKind: ImageKeyList
+    plural: imagekeys
+    singular: imagekey
+  scope: Namespaced
+  versions:
+  - name: v1
+    schema:
+      openAPIV3Schema:
+        description: ImageKey is the Schema for the imagekeys API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: ImageKeySpec defines the desired state of ImageKey
+            properties:
+              venafiPKCS11Config:
+                description: VenafiPKCS11Config contains the Venafi PKCS11 client configuration used to retrieve public keys.
+                properties:
+                  authURL:
+                    description: The authentication URL for the Venafi Trust Protection Platform (TPP).
+                    type: string
+                  configMap:
+                    description: A ConfigMap in which to store the label and retrieved public key. The label is used as the map key.
+                    type: string
+                  hostAlias:
+                    description: A host alias to access the Venafi Trust Protection Platform (TPP) system.
+                    type: string
+                  hsmURL:
+                    description: The HSM URL for the Venafi Trust Protection Platform
+                    type: string
+                  interval:
+                    description: The time interval in minutes to check for new or updated keys
+                    type: integer
+                  label:
+                    description: The label to use for fetching public keys from the Venafi Trust Protection Platform (TPP) environment.
+                    type: string
+                  passwordSecretName:
+                    description: The resource name for a Secret in the current namespace that contains the password to access the Venafi Trust Protection Platform (TPP).
+                    type: string
+                  username:
+                    description: The username to access the Venafi Trust Protection Platform (TPP).
+                    type: string
+                required:
+                - authURL
+                - configMap
+                - hsmURL
+                - label
+                - passwordSecretName
+                - username
+                type: object
+            type: object
+          status:
+            description: ImageKeyStatus defines the observed state of ImageKey
+            properties:
+              venafiPKCS11Config:
+                description: VenafiPKCS11Config contains the Venafi PKCS11 client status
+                properties:
+                  cronJob:
+                    description: The name of the CronJob that
+                    type: string
+                required:
+                - cronJob
+                type: object
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: imagekey-controller-controller-manager
+  namespace: nirmata
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: imagekey-controller-leader-election-role
+  namespace: nirmata
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  creationTimestamp: null
+  name: imagekey-controller-manager-role
+  namespace: nirmata
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  name: imagekey-controller-manager-role
+rules:
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs
+  - jobs
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - batch
+  resources:
+  - cronjobs/status
+  - jobs/status
+  verbs:
+  - get
+- apiGroups:
+  - security.nirmata.io
+  resources:
+  - imagekeys
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - security.nirmata.io
+  resources:
+  - imagekeys/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - security.nirmata.io
+  resources:
+  - imagekeys/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: imagekey-controller-metrics-reader
+rules:
+- nonResourceURLs:
+  - /metrics
+  verbs:
+  - get
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: imagekey-controller-proxy-role
+rules:
+- apiGroups:
+  - authentication.k8s.io
+  resources:
+  - tokenreviews
+  verbs:
+  - create
+- apiGroups:
+  - authorization.k8s.io
+  resources:
+  - subjectaccessreviews
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: imagekey-controller-leader-election-rolebinding
+  namespace: nirmata
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: imagekey-controller-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: imagekey-controller-controller-manager
+  namespace: nirmata
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: imagekey-controller-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: imagekey-controller-manager-role
+subjects:
+- kind: ServiceAccount
+  name: imagekey-controller-controller-manager
+  namespace: nirmata
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: imagekey-controller-proxy-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: imagekey-controller-proxy-role
+subjects:
+- kind: ServiceAccount
+  name: imagekey-controller-controller-manager
+  namespace: nirmata
+---
+apiVersion: v1
+data:
+  controller_manager_config.yaml: |
+    apiVersion: controller-runtime.sigs.k8s.io/v1alpha1
+    kind: ControllerManagerConfig
+    health:
+      healthProbeBindAddress: :8081
+    metrics:
+      bindAddress: 127.0.0.1:8080
+    webhook:
+      port: 9443
+    leaderElection:
+      leaderElect: true
+      resourceName: abf84c06.nirmata.io
+kind: ConfigMap
+metadata:
+  name: imagekey-controller-manager-config
+  namespace: nirmata
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: imagekey-controller-controller-manager-metrics-service
+  namespace: nirmata
+spec:
+  ports:
+  - name: https
+    port: 8443
+    protocol: TCP
+    targetPort: https
+  selector:
+    control-plane: controller-manager
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    control-plane: controller-manager
+  name: imagekey-controller-controller-manager
+  namespace: nirmata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+    spec:
+      containers:
+      - args:
+        - --secure-listen-address=0.0.0.0:8443
+        - --upstream=http://127.0.0.1:8080/
+        - --logtostderr=true
+        - --v=0
+        image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 5m
+            memory: 64Mi
+      - args:
+        - --health-probe-bind-address=:8081
+        - --metrics-bind-address=127.0.0.1:8080
+        - --leader-elect
+        command:
+        - /manager
+        image: ghcr.io/nirmata/nirmata-imagekey-controller:v0.1
+        imagePullPolicy: Always
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        name: manager
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+      securityContext:
+        runAsNonRoot: true
+      serviceAccountName: imagekey-controller-controller-manager
+      terminationGracePeriodSeconds: 10
