@@ -327,12 +327,20 @@ spec:
   selector:
     matchLabels:
       control-plane: controller-manager
+      app: imagekey-controller-controller-manager
+      nirmata.io/container.type: system
+      app.kubernetes.io/name: nirmata
+      app.kubernetes.io/instance: nirmata
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
         control-plane: controller-manager
+        app: imagekey-controller-controller-manager
+        nirmata.io/container.type: system
+        app.kubernetes.io/name: nirmata
+        app.kubernetes.io/instance: nirmata
     spec:
       containers:
       - args:
@@ -342,6 +350,28 @@ spec:
         - --v=0
         image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
         name: kube-rbac-proxy
+        livenessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 15
+          periodSeconds: 600
+          successThreshold: 1
+          tcpSocket:
+            port: 8443
+          timeoutSeconds: 5
+        readinessProbe:
+          failureThreshold: 3
+          initialDelaySeconds: 5
+          periodSeconds: 600
+          successThreshold: 1
+          tcpSocket:
+            port: 8443
+          timeoutSeconds: 5
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+          readOnlyRootFilesystem: true
         ports:
         - containerPort: 8443
           name: https
@@ -383,6 +413,10 @@ spec:
             memory: 64Mi
         securityContext:
           allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - "ALL"
+          readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
       serviceAccountName: imagekey-controller-controller-manager
