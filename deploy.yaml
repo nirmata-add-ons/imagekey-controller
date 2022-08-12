@@ -57,6 +57,9 @@ spec:
                   interval:
                     description: The time interval in minutes to check for new or updated keys.
                     type: integer
+                  keyfetchClientRegistry:
+                    description: KeyfetchClientRegistry housing keyfetch client
+                    type: string
                   label:
                     description: The label to use for fetching public keys from the Venafi Trust Protection Platform (TPP) environment.
                     type: string
@@ -386,7 +389,6 @@ spec:
       - args:
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=127.0.0.1:8080
-        - --leader-elect
         command:
         - /manager
         image: ghcr.io/nirmata/nirmata-imagekey-controller:v0.1
