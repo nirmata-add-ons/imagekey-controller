@@ -106,7 +106,7 @@ status:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: imagekey-controller-controller-manager
+  name: imagekey-controller
   namespace: nirmata
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -254,7 +254,7 @@ roleRef:
   name: imagekey-controller-leader-election-role
 subjects:
 - kind: ServiceAccount
-  name: imagekey-controller-controller-manager
+  name: imagekey-controller
   namespace: nirmata
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -267,7 +267,7 @@ roleRef:
   name: imagekey-controller-manager-role
 subjects:
 - kind: ServiceAccount
-  name: imagekey-controller-controller-manager
+  name: imagekey-controller
   namespace: nirmata
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -280,7 +280,7 @@ roleRef:
   name: imagekey-controller-proxy-role
 subjects:
 - kind: ServiceAccount
-  name: imagekey-controller-controller-manager
+  name: imagekey-controller
   namespace: nirmata
 ---
 apiVersion: v1
@@ -307,7 +307,7 @@ kind: Service
 metadata:
   labels:
     control-plane: controller-manager
-  name: imagekey-controller-controller-manager-metrics-service
+  name: imagekey-controller-metrics-service
   namespace: nirmata
 spec:
   ports:
@@ -323,27 +323,27 @@ kind: Deployment
 metadata:
   labels:
     control-plane: controller-manager
-  name: imagekey-controller-controller-manager
+  name: imagekey-controller
   namespace: nirmata
 spec:
   replicas: 1
   selector:
     matchLabels:
-      control-plane: controller-manager
-      app: imagekey-controller-controller-manager
-      nirmata.io/container.type: system
-      app.kubernetes.io/name: nirmata
+      app: imagekey-controller
       app.kubernetes.io/instance: nirmata
+      app.kubernetes.io/name: nirmata
+      control-plane: controller-manager
+      nirmata.io/container.type: system
   template:
     metadata:
       annotations:
         kubectl.kubernetes.io/default-container: manager
       labels:
-        control-plane: controller-manager
-        app: imagekey-controller-controller-manager
-        nirmata.io/container.type: system
-        app.kubernetes.io/name: nirmata
+        app: imagekey-controller
         app.kubernetes.io/instance: nirmata
+        app.kubernetes.io/name: nirmata
+        control-plane: controller-manager
+        nirmata.io/container.type: system
     spec:
       containers:
       - args:
@@ -352,7 +352,6 @@ spec:
         - --logtostderr=true
         - --v=0
         image: gcr.io/kubebuilder/kube-rbac-proxy:v0.8.0
-        name: kube-rbac-proxy
         livenessProbe:
           failureThreshold: 3
           initialDelaySeconds: 15
@@ -361,6 +360,11 @@ spec:
           tcpSocket:
             port: 8443
           timeoutSeconds: 5
+        name: kube-rbac-proxy
+        ports:
+        - containerPort: 8443
+          name: https
+          protocol: TCP
         readinessProbe:
           failureThreshold: 3
           initialDelaySeconds: 5
@@ -369,16 +373,6 @@ spec:
           tcpSocket:
             port: 8443
           timeoutSeconds: 5
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-            - "ALL"
-          readOnlyRootFilesystem: true
-        ports:
-        - containerPort: 8443
-          name: https
-          protocol: TCP
         resources:
           limits:
             cpu: 500m
@@ -386,6 +380,12 @@ spec:
           requests:
             cpu: 5m
             memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
       - args:
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=127.0.0.1:8080
@@ -417,9 +417,9 @@ spec:
           allowPrivilegeEscalation: false
           capabilities:
             drop:
-            - "ALL"
+            - ALL
           readOnlyRootFilesystem: true
       securityContext:
         runAsNonRoot: true
-      serviceAccountName: imagekey-controller-controller-manager
+      serviceAccountName: imagekey-controller
       terminationGracePeriodSeconds: 10
